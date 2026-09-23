@@ -1,0 +1,8 @@
+server:
+  port: ${EUREKA_SERVER_PORT}
+
+spring:
+  application:
+    name: discovery-server
+  config:
+    import: optional:configserver:${CONFIG_SERVER_URL}
