@@ -1,18 +1,19 @@
-cd ~/Escritorio/RediCUT
-cat > .gitignore << 'EOF'
 # Variables de entorno
 .env
 .env.*
 !.env.example
 
-# Swap de editores
-*.swp
-*.swo
-
 # IDE
 .idea/
+*.iml
+*.iws
+*.ipr
+.vscode/
 
 # Maven
 target/
-EOF
+HELP.md
 
+# Swap de editores
+*.swp
+*.swo
