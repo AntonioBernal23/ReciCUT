@@ -20,3 +20,7 @@ spring:
               uri: lb://report-service
               predicates:
                 - Path=/api/reports/**
+            - id: collection-service
+              uri: lb://collection-service
+              predicates:
+                - Path=/api/collections/**
