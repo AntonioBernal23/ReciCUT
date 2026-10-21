@@ -41,7 +41,7 @@ public class GoogleAuthService {
             UserService.FindOrCreateResult result = userService.findOrCreateGoogleUser(idToken.getPayload());
             UserEntity user = result.user();
 
-            String token = jwtService.generateToken(user.getEmail(), user.getRole());
+            String token = jwtService.generateToken(user.getId(), user.getEmail(), user.getRole());
 
             return ResponseEntity.ok(token);
 

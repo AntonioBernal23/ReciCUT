@@ -48,11 +48,14 @@ public class JwtAuthFilter implements GlobalFilter, Ordered {
                     .parseSignedClaims(token)
                     .getPayload();
 
-            // Reconstruye el request agregando headers internos con los datos del claim
+            // Reconstruye el request agregando headers internos con los datos del claim.
+            // Los servicios de abajo confian en estos headers y ya no validan el token.
+            Object userId = claims.get("userId");
+
             ServerHttpRequest mutatedRequest = exchange.getRequest().mutate()
+                    .header("X-User-Id", userId == null ? "" : String.valueOf(userId))
                     .header("X-User-Email", claims.getSubject())
                     .header("X-User-Role", claims.get("role", String.class))
-                    .header("X-User-Name", claims.get("name", String.class))
                     .headers(headers -> headers.remove("Authorization")) // no reenviar el JWT crudo
                     .build();
 

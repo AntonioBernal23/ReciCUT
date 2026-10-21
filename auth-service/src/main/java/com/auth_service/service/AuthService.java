@@ -43,7 +43,7 @@ public class AuthService {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Credenciales inválidas");
         }
 
-        String token = jwtService.generateToken(user.getEmail(), UserEntity.Role.valueOf(String.valueOf(user.getRole())));
+        String token = jwtService.generateToken(user.getId(), user.getEmail(), user.getRole());
 
         return ResponseEntity.ok(token);
     }
