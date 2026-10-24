@@ -3,7 +3,8 @@ cat > .gitignore << 'EOF'
 # Variables de entorno
 .env
 .env.*
-!.env.example
+!.env.example.local
+!.env.example.docker
 
 # Swap de editores
 *.swp
