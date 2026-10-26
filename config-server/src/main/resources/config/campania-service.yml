@@ -4,19 +4,19 @@
   eureka:
     client:
       service-url:
-        defaultZone: ${EUREKA_URL:http://localhost:8761/eureka/}
+        defaultZone: ${EUREKA_URL}
 
   spring:
     datasource:
-      url: jdbc:mariadb://${MARIADB_CAMPANIA_HOST:localhost}:${MARIADB_CAMPANIA_PORT:3306}/${MARIADB_CAMPANIA_SERVICE:campania_service}
+      url: jdbc:mariadb://${MARIADB_CAMPANIA_HOST}:${MARIADB_CAMPANIA_PORT}/${MARIADB_CAMPANIA_SERVICE}
       driver-class-name: org.mariadb.jdbc.Driver
-      username: ${MYSQL_ROOT_USERNAME:root}
-      password: ${MYSQL_ROOT_PASSWORD:root}
+      username: ${MYSQL_ROOT_USERNAME}
+      password: ${MYSQL_ROOT_PASSWORD}
 
     jpa:
       hibernate:
-        ddl-auto: ${JPA_DDL_AUTO:update}
-      show-sql: ${JPA_SHOW_SQL:true}
+        ddl-auto: ${JPA_DDL_AUTO}
+      show-sql: ${JPA_SHOW_SQL}
       properties:
         hibernate:
           dialect: org.hibernate.dialect.MariaDBDialect
