@@ -1,0 +1,22 @@
+  server:
+    port: ${CAMPANIA_SERVICE_PORT:8060}
+
+  eureka:
+    client:
+      service-url:
+        defaultZone: ${EUREKA_URL:http://localhost:8761/eureka/}
+
+  spring:
+    datasource:
+      url: jdbc:mariadb://${MARIADB_CAMPANIA_HOST:localhost}:${MARIADB_CAMPANIA_PORT:3306}/${MARIADB_CAMPANIA_SERVICE:campania_service}
+      driver-class-name: org.mariadb.jdbc.Driver
+      username: ${MYSQL_ROOT_USERNAME:root}
+      password: ${MYSQL_ROOT_PASSWORD:root}
+
+    jpa:
+      hibernate:
+        ddl-auto: ${JPA_DDL_AUTO:update}
+      show-sql: ${JPA_SHOW_SQL:true}
+      properties:
+        hibernate:
+          dialect: org.hibernate.dialect.MariaDBDialect

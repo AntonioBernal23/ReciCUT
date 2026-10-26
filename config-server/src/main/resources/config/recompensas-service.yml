@@ -1,0 +1,21 @@
+server:
+  port: ${RECOMPENSAS_SERVICE_PORT:8062}
+
+eureka:
+  client:
+    service-url:
+      defaultZone: ${EUREKA_URL:http://localhost:8761/eureka/}
+
+spring:
+  datasource:
+    url: jdbc:mariadb://${MARIADB_RECOMPENSAS_HOST:localhost}:${MARIADB_RECOMPENSAS_PORT:3306}/${MARIADB_RECOMPENSAS_SERVICE:recompensas_service}
+    driver-class-name: org.mariadb.jdbc.Driver
+    username: ${MYSQL_ROOT_USERNAME:root}
+    password: ${MYSQL_ROOT_PASSWORD:root}
+  jdbc:
+    template:
+      query-timeout: 30
+  jpa:
+    hibernate:
+      ddl-auto: ${JPA_DDL_AUTO:update}
+    show-sql: ${JPA_SHOW_SQL:false}

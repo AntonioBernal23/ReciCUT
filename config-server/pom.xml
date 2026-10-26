@@ -13,6 +13,8 @@
 	<name/>
 	<description/>
 
+
+
 	<properties>
 		<java.version>17</java.version>
 		<spring-cloud.version>2025.1.3</spring-cloud.version>
@@ -28,6 +30,13 @@
 			<artifactId>spring-boot-starter-test</artifactId>
 			<scope>test</scope>
 		</dependency>
+
+		<dependency>
+			<groupId>org.mariadb.jdbc</groupId>
+			<artifactId>mariadb-java-client</artifactId>
+		</dependency>
+
+
 	</dependencies>
 	<dependencyManagement>
 		<dependencies>
