@@ -33,3 +33,7 @@ spring:
               uri: lb://user-service
               predicates:
                 - Path=/api/users/**
+            - id: report-service
+              uri: lb://report-service
+              predicates:
+                - Path=/api/reports/**
