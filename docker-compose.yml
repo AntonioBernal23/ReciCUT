@@ -186,6 +186,108 @@ services:
       - recicut_network
     restart: on-failure
 
+  mysql-collection:
+    image: mysql:8.0
+    container_name: mysql-collection
+    ports:
+      - "127.0.0.1:${MYSQL_COLLECTION_PORT}:3306"
+    environment:
+      - MYSQL_ROOT_PASSWORD=${MYSQL_COLLECTION_ROOT_PASSWORD}
+      - MYSQL_DATABASE=${MYSQL_COLLECTION_DATABASE}
+      - MYSQL_USER=${MYSQL_COLLECTION_USERNAME}
+      - MYSQL_PASSWORD=${MYSQL_COLLECTION_PASSWORD}
+    volumes:
+      - recicut_data_collection:/var/lib/mysql
+    networks:
+      - recicut_network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 20s
+      timeout: 5s
+      retries: 5
+    restart: always
+
+  mysql-report:
+    image: mysql:8.0
+    container_name: mysql-report
+    ports:
+      - "127.0.0.1:${MYSQL_REPORT_PORT}:3306"
+    environment:
+      - MYSQL_ROOT_PASSWORD=${MYSQL_REPORT_ROOT_PASSWORD}
+      - MYSQL_DATABASE=${MYSQL_REPORT_DATABASE}
+      - MYSQL_USER=${MYSQL_REPORT_USERNAME}
+      - MYSQL_PASSWORD=${MYSQL_REPORT_PASSWORD}
+    volumes:
+      - recicut_data_report:/var/lib/mysql
+    networks:
+      - recicut_network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 20s
+      timeout: 5s
+      retries: 5
+    restart: always
+
+  collection-service:
+    build:
+      context: .
+      dockerfile: ./collection-service/Dockerfile
+    container_name: collection-service
+    depends_on:
+      config-server:
+        condition: service_healthy
+      discovery-server:
+        condition: service_healthy
+      kafka:
+        condition: service_started
+      mysql-collection:
+        condition: service_healthy
+    environment:
+      - SPRING_CONFIG_IMPORT=optional:configserver:${CONFIG_SERVER_URL}
+      - CONFIG_SERVER_URL=${CONFIG_SERVER_URL}
+      - COLLECTION_SERVICE_PORT=${COLLECTION_SERVICE_PORT}
+      - EUREKA_URL=${EUREKA_URL}
+      - MYSQL_COLLECTION_HOST=${MYSQL_COLLECTION_HOST}
+      - MYSQL_COLLECTION_DATABASE=${MYSQL_COLLECTION_DATABASE}
+      - MYSQL_COLLECTION_USERNAME=${MYSQL_COLLECTION_USERNAME}
+      - MYSQL_COLLECTION_PASSWORD=${MYSQL_COLLECTION_PASSWORD}
+      - JPA_DDL_AUTO=${JPA_DDL_AUTO}
+      - JPA_SHOW_SQL=${JPA_SHOW_SQL}
+      - KAFKA_BROKER=${KAFKA_BROKER}
+    networks:
+      - recicut_network
+    restart: on-failure
+
+  report-service:
+    build:
+      context: .
+      dockerfile: ./report-service/Dockerfile
+    container_name: report-service
+    depends_on:
+      config-server:
+        condition: service_healthy
+      discovery-server:
+        condition: service_healthy
+      kafka:
+        condition: service_started
+      mysql-report:
+        condition: service_healthy
+    environment:
+      - SPRING_CONFIG_IMPORT=optional:configserver:${CONFIG_SERVER_URL}
+      - CONFIG_SERVER_URL=${CONFIG_SERVER_URL}
+      - REPORT_SERVICE_PORT=${REPORT_SERVICE_PORT}
+      - EUREKA_URL=${EUREKA_URL}
+      - MYSQL_REPORT_HOST=${MYSQL_REPORT_HOST}
+      - MYSQL_REPORT_DATABASE=${MYSQL_REPORT_DATABASE}
+      - MYSQL_REPORT_USERNAME=${MYSQL_REPORT_USERNAME}
+      - MYSQL_REPORT_PASSWORD=${MYSQL_REPORT_PASSWORD}
+      - JPA_DDL_AUTO=${JPA_DDL_AUTO}
+      - JPA_SHOW_SQL=${JPA_SHOW_SQL}
+      - KAFKA_BROKER=${KAFKA_BROKER}
+    networks:
+      - recicut_network
+    restart: on-failure
+
   api-gateway:
     build:
       context: .
@@ -216,4 +318,6 @@ networks:
 volumes:
   recicut_data_user:
   recicut_data_auth:
+  recicut_data_collection:
+  recicut_data_report:
   kafka_data:
