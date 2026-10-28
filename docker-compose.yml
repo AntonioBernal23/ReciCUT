@@ -1,77 +1,219 @@
-# =====================================================================
-#  ReciCUT - infraestructura de desarrollo
-#
-#  Levanta:  Kafka (el broker de eventos) + kafka-ui (para verlo)
-#  MySQL NO esta aqui: cada quien lo tiene instalado en su maquina.
-#
-#  USO:
-#    docker compose up -d        levantar en segundo plano
-#    docker compose ps           ver que esta corriendo
-#    docker compose logs -f      ver los logs en vivo
-#    docker compose down         apagar (conserva los mensajes)
-#    docker compose down -v      apagar y BORRAR los mensajes
-# =====================================================================
-
 services:
+  config-server:
+    build:
+      context: .
+      dockerfile: ./config-server/Dockerfile
+    container_name: config-server
+    environment:
+      - CONFIG_SERVER_PORT=${CONFIG_SERVER_PORT}
+    networks:
+      - recicut_network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:${CONFIG_SERVER_PORT}/application/default || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    restart: on-failure
+
+  discovery-server:
+    build:
+      context: .
+      dockerfile: ./discovery-server/Dockerfile
+    container_name: discovery-server
+    depends_on:
+      config-server:
+        condition: service_healthy
+    ports:
+      - "${EUREKA_SERVER_PORT}:8761"
+    environment:
+      - SPRING_CONFIG_IMPORT=optional:configserver:${CONFIG_SERVER_URL}
+      - CONFIG_SERVER_URL=${CONFIG_SERVER_URL}
+      - EUREKA_SERVER_PORT=${EUREKA_SERVER_PORT}
+      - EUREKA_HOSTNAME=${EUREKA_HOSTNAME}
+      - EUREKA_CLIENT_REGISTERWITHEUREKA=false
+      - EUREKA_CLIENT_FETCHREGISTRY=false
+    networks:
+      - recicut_network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:${EUREKA_SERVER_PORT}/eureka/apps -o /dev/null || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    restart: on-failure
+
+  mysql-auth:
+    image: mysql:8.0
+    container_name: mysql-auth
+    ports:
+      - "127.0.0.1:${MYSQL_AUTH_PORT}:3306"
+    environment:
+      - MYSQL_ROOT_PASSWORD=${MYSQL_AUTH_ROOT_PASSWORD}
+      - MYSQL_DATABASE=${MYSQL_AUTH_DATABASE}
+      - MYSQL_USER=${MYSQL_AUTH_USERNAME}
+      - MYSQL_PASSWORD=${MYSQL_AUTH_PASSWORD}
+    volumes:
+      - recicut_data_auth:/var/lib/mysql
+    networks:
+      - recicut_network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 20s
+      timeout: 5s
+      retries: 5
+    restart: always
+
+  mysql-user:
+    image: mysql:8.0
+    container_name: mysql-user
+    ports:
+      - "127.0.0.1:${MYSQL_USER_PORT}:3306"
+    environment:
+      - MYSQL_ROOT_PASSWORD=${MYSQL_USER_ROOT_PASSWORD}
+      - MYSQL_DATABASE=${MYSQL_USER_DATABASE}
+      - MYSQL_USER=${MYSQL_USER_USERNAME}
+      - MYSQL_PASSWORD=${MYSQL_USER_PASSWORD}
+    volumes:
+      - recicut_data_user:/var/lib/mysql
+    networks:
+      - recicut_network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 20s
+      timeout: 5s
+      retries: 5
+    restart: always
 
   kafka:
-    image: apache/kafka:3.9.0          # version fija: todo el equipo usa la misma
-    container_name: recicut-kafka
+    image: apache/kafka:3.8.0
+    container_name: kafka
     ports:
-      - "9092:9092"                    # puerto_de_tu_pc : puerto_del_contenedor
+      - "9092:9092" # solo para apps que corren en tu máquina (fuera de Docker)
     environment:
-      # --- Modo KRaft -------------------------------------------------
-      # Kafka moderno ya NO necesita Zookeeper: el mismo proceso hace de
-      # broker (guarda mensajes) y de controller (coordina el cluster).
       KAFKA_NODE_ID: 1
       KAFKA_PROCESS_ROLES: broker,controller
-      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@localhost:9093
-
-      # --- Como se anuncia Kafka a quien se conecta -------------------
-      # ADVERTISED_LISTENERS es la direccion que Kafka le DICE a los
-      # clientes que usen. Si aqui pusieras el nombre del contenedor,
-      # tus servicios en IntelliJ no podrian conectarse.
-      KAFKA_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:9093
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092
-      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
+      KAFKA_LISTENERS: INTERNAL://:19092,EXTERNAL://:9092,CONTROLLER://:9093
+      # INTERNAL: contenedores (kafka:19092). EXTERNAL: tu host (localhost:9092)
+      KAFKA_ADVERTISED_LISTENERS: INTERNAL://kafka:19092,EXTERNAL://localhost:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,INTERNAL:PLAINTEXT,EXTERNAL:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
       KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
-      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
-
-      # --- Ajustes para UN SOLO nodo ----------------------------------
-      # En produccion habria 3+ brokers y replicas. Aqui todo es 1.
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
       KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
       KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
-      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
-
-      # Crea los topics solos la primera vez que alguien publica en ellos.
-      # Comodo en desarrollo; en produccion se crean a proposito.
       KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
     volumes:
-      - kafka-data:/var/lib/kafka/data
-    healthcheck:
-      test: ["CMD-SHELL", "/opt/kafka/bin/kafka-broker-api-versions.sh --bootstrap-server localhost:9092 || exit 1"]
-      interval: 10s
-      timeout: 10s
-      retries: 10
-      start_period: 30s
+      - kafka_data:/var/lib/kafka/data
+    networks:
+      - recicut_network
+    restart: on-failure
 
   kafka-ui:
     image: provectuslabs/kafka-ui:latest
-    container_name: recicut-kafka-ui
+    container_name: kafka-ui
     ports:
-      - "8090:8080"                    # abre http://localhost:8090
+      - "8085:8080"
     environment:
-      KAFKA_CLUSTERS_0_NAME: recicut
-      # OJO: aqui si va "kafka:9092" y no "localhost". Dentro de la red de
-      # Docker, cada contenedor se alcanza por el NOMBRE del servicio.
-      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:9092
-      DYNAMIC_CONFIG_ENABLED: "true"
+      KAFKA_CLUSTERS_0_NAME: local
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:19092
     depends_on:
-      kafka:
+      - kafka
+    networks:
+      - recicut_network
+
+  auth-service:
+    build:
+      context: .
+      dockerfile: ./auth-service/Dockerfile
+    container_name: auth-service
+    depends_on:
+      config-server:
         condition: service_healthy
+      discovery-server:
+        condition: service_healthy
+      kafka:
+        condition: service_started
+      mysql-auth:
+        condition: service_healthy
+    environment:
+      - SPRING_CONFIG_IMPORT=optional:configserver:${CONFIG_SERVER_URL}
+      - CONFIG_SERVER_URL=${CONFIG_SERVER_URL}
+      - AUTH_SERVICE_PORT=${AUTH_SERVICE_PORT}
+      - EUREKA_URL=${EUREKA_URL}
+      - MYSQL_AUTH_HOST=${MYSQL_AUTH_HOST}
+      - MYSQL_AUTH_DATABASE=${MYSQL_AUTH_DATABASE}
+      - MYSQL_AUTH_USERNAME=${MYSQL_AUTH_USERNAME}
+      - MYSQL_AUTH_PASSWORD=${MYSQL_AUTH_PASSWORD}
+      - JPA_DDL_AUTO=${JPA_DDL_AUTO}
+      - JPA_SHOW_SQL=${JPA_SHOW_SQL}
+      - KAFKA_BROKER=${KAFKA_BROKER}
+      - JWT_SECRET=${JWT_SECRET}
+      - JWT_EXPIRATION=${JWT_EXPIRATION}
+      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
+    networks:
+      - recicut_network
+    restart: on-failure
+
+  user-service:
+    build:
+      context: .
+      dockerfile: ./user-service/Dockerfile
+    container_name: user-service
+    depends_on:
+      config-server:
+        condition: service_healthy
+      discovery-server:
+        condition: service_healthy
+      kafka:
+        condition: service_started
+      mysql-user:
+        condition: service_healthy
+    environment:
+      - SPRING_CONFIG_IMPORT=optional:configserver:${CONFIG_SERVER_URL}
+      - CONFIG_SERVER_URL=${CONFIG_SERVER_URL}
+      - USER_SERVICE_PORT=${USER_SERVICE_PORT}
+      - EUREKA_URL=${EUREKA_URL}
+      - MYSQL_USER_HOST=${MYSQL_USER_HOST}
+      - MYSQL_USER_DATABASE=${MYSQL_USER_DATABASE}
+      - MYSQL_USER_USERNAME=${MYSQL_USER_USERNAME}
+      - MYSQL_USER_PASSWORD=${MYSQL_USER_PASSWORD}
+      - JPA_DDL_AUTO=${JPA_DDL_AUTO}
+      - JPA_SHOW_SQL=${JPA_SHOW_SQL}
+      - KAFKA_BROKER=${KAFKA_BROKER}
+    networks:
+      - recicut_network
+    restart: on-failure
+
+  api-gateway:
+    build:
+      context: .
+      dockerfile: ./api-gateway/Dockerfile
+    container_name: api-gateway
+    depends_on:
+      config-server:
+        condition: service_healthy
+      discovery-server:
+        condition: service_healthy
+    ports:
+      - "${API_GATEWAY_PORT}:${API_GATEWAY_PORT}"
+    environment:
+      - SPRING_CONFIG_IMPORT=optional:configserver:${CONFIG_SERVER_URL}
+      - CONFIG_SERVER_URL=${CONFIG_SERVER_URL}
+      - API_GATEWAY_PORT=${API_GATEWAY_PORT}
+      - EUREKA_URL=${EUREKA_URL}
+      - CORS_ALLOWED_ORIGINS=${CORS_ALLOWED_ORIGINS}
+      - JWT_SECRET=${JWT_SECRET}
+    networks:
+      - recicut_network
+    restart: on-failure
+
+networks:
+  recicut_network:
+    driver: bridge
 
 volumes:
-  # Un volumen guarda los mensajes aunque borres el contenedor.
-  # Sin esto, cada "docker compose down" perderia todos los eventos.
-  kafka-data:
+  recicut_data_user:
+  recicut_data_auth:
+  kafka_data:

@@ -4,23 +4,40 @@ server:
 eureka:
   client:
     service-url:
-      defaultZone: ${EUREKA_URL:http}
+      defaultZone: ${EUREKA_URL:http://localhost:8761/eureka/}
+
+jwt:
+  secret: ${JWT_SECRET}
 
 spring:
   cloud:
     gateway:
       server:
         webflux:
+          globalcors:
+            cors-configurations:
+              '[/**]':
+                allowedOrigins: ${CORS_ALLOWED_ORIGINS:http://localhost:4200}
+                allowedMethods: ${CORS_ALLOWED_METHODS:GET,POST,PUT,DELETE,PATCH,OPTIONS}
+                allowedHeaders: "*"
+                allowCredentials: true
+                maxAge: 3600
+          default-filters:
+            - DedupeResponseHeader=Access-Control-Allow-Origin Access-Control-Allow-Credentials, RETAIN_FIRST
           routes:
             - id: auth-service
               uri: lb://auth-service
               predicates:
                 - Path=/api/auth/**
-            - id: report-service
-              uri: lb://report-service
+            - id: user-service
+              uri: lb://user-service
               predicates:
-                - Path=/api/reports/**
+                - Path=/api/users/**
             - id: collection-service
               uri: lb://collection-service
               predicates:
                 - Path=/api/collections/**
+            - id: report-service
+              uri: lb://report-service
+              predicates:
+                - Path=/api/reports/**
