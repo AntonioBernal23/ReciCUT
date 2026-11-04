@@ -11,7 +11,6 @@ import java.util.Date;
 @Entity
 @Setter
 @Getter
-
 @AllArgsConstructor
 @NoArgsConstructor
 public class CampaniaEntity {
@@ -24,8 +23,10 @@ public class CampaniaEntity {
 
     private String name;
 
+    @Enumerated(EnumType.STRING)
     private Type type;
 
+    @Enumerated(EnumType.STRING)
     private Estado estado;
 
     private Date dateStart;
@@ -38,17 +39,7 @@ public class CampaniaEntity {
         VOLUNTARIA, SERVICIO
     }
 
-    public enum Estado{
+    public enum Estado {
         ACTIVA, VENCIDA, BORRADOR, CREADA
-    }
-
-    public CampaniaEntity(Long userId, String name, Type type, Estado estado, Date dateStart, Date endDate, Date createdAt) {
-        this.userId = userId;
-        this.name = name;
-        this.type = type;
-        this.estado = estado;
-        this.dateStart = dateStart;
-        this.endDate = endDate;
-        this.createdAt = createdAt;
     }
 }

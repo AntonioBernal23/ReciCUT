@@ -3,13 +3,13 @@ package com.campania_service.service;
 import com.campania_service.dto.CampaniaRequest;
 import com.campania_service.entity.CampaniaEntity;
 import com.campania_service.repository.CampaniaRepository;
-import org.springframework.http.ResponseEntity;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.web.server.ResponseStatusException;
 
-import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
-
+//aquiiiiiiiiiiiiiiiiiiiiii!//
 @Service
 public class CampaniaService {
 
@@ -19,30 +19,35 @@ public class CampaniaService {
         this.campaniaRepository = campaniaRepository;
     }
 
-    public ResponseEntity<CampaniaEntity> create(CampaniaRequest campaniaRequest) {
+    public CampaniaEntity create(CampaniaRequest request, Long userId) {
 
-        CampaniaEntity campaniaEntity = new CampaniaEntity();
+        if (request.getDateStart() != null && request.getEndDate() != null
+                && request.getEndDate().before(request.getDateStart())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "La fecha de fin no puede ser antes de la fecha de inicio");
+        }
 
-        campaniaEntity.setUserId(campaniaRequest.getUserId());
-        campaniaEntity.setName(campaniaRequest.getName());
-        campaniaEntity.setType(campaniaRequest.getType());
-        campaniaEntity.setEstado(campaniaRequest.getEstado());
-        campaniaEntity.setDateStart(campaniaRequest.getDateStart());
-        campaniaEntity.setEndDate(campaniaRequest.getEndDate());
-        campaniaEntity.setCreatedAt(new Date());
+        CampaniaEntity campania = new CampaniaEntity();
+        campania.setUserId(userId);
+        campania.setName(request.getName());
+        campania.setType(request.getType());
+        campania.setEstado(request.getEstado() != null
+                ? request.getEstado()
+                : CampaniaEntity.Estado.BORRADOR);
+        campania.setDateStart(request.getDateStart());
+        campania.setEndDate(request.getEndDate());
+        campania.setCreatedAt(new Date());
 
-        CampaniaEntity campaniaGuardada = campaniaRepository.save(campaniaEntity);
-
-        return ResponseEntity.ok().body(campaniaGuardada);
+        return campaniaRepository.save(campania);
     }
 
-    public ResponseEntity<List<CampaniaEntity>> getCampanias() {
-
-        List<CampaniaEntity> campaniasList = new ArrayList<>();
-        campaniasList = campaniaRepository.findAll();
-
-        return ResponseEntity.ok().body(campaniasList);
-
+    public List<CampaniaEntity> getCampanias() {
+        return campaniaRepository.findAll();
     }
 
+    public CampaniaEntity getById(Long id) {
+        return campaniaRepository.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.NOT_FOUND, "Campaña no encontrada"));
+    }
 }
