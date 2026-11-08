@@ -17,8 +17,8 @@
         <module>auth-service</module>
         <module>api-gateway</module>
         <module>user-service</module>
-        <module>centro_reciclajes/centro_reciclajes</module>
-        <module>recolectores/recolectores</module>
+        <module>centro_reciclajes</module>
+        <module>recolectores</module>
     </modules>
 
     <properties>
