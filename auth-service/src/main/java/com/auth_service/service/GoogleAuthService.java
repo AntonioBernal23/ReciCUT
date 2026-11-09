@@ -1,6 +1,7 @@
 package com.auth_service.service;
 
 import com.auth_service.entity.UserEntity;
+import com.auth_service.records.GoogleAuthResponse;
 import com.google.api.client.googleapis.auth.oauth2.GoogleIdToken;
 import com.google.api.client.googleapis.auth.oauth2.GoogleIdTokenVerifier;
 import com.google.api.client.http.javanet.NetHttpTransport;
@@ -25,7 +26,7 @@ public class GoogleAuthService {
     @Value("${google.client-id}")
     private String googleClientId;
 
-    public ResponseEntity<String> verify(String idTokenString) {
+    public ResponseEntity<GoogleAuthResponse> verify(String idTokenString) {
         try {
             GoogleIdTokenVerifier verifier = new GoogleIdTokenVerifier.Builder(
                     new NetHttpTransport(), new GsonFactory())
@@ -41,9 +42,8 @@ public class GoogleAuthService {
             UserService.FindOrCreateResult result = userService.findOrCreateGoogleUser(idToken.getPayload());
             UserEntity user = result.user();
 
-            String token = jwtService.generateToken(user.getEmail(), user.getRole());
-
-            return ResponseEntity.ok(token);
+            String token = jwtService.generateToken(user.getEmail(), user.getRole(), user.getId());
+            return ResponseEntity.ok(new GoogleAuthResponse(token));
 
         } catch (Exception e) {
             throw new RuntimeException("Error verificando token de Google: " + e.getMessage());

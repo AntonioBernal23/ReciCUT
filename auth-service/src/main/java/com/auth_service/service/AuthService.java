@@ -2,6 +2,7 @@ package com.auth_service.service;
 
 import com.auth_service.dto.LoginDTO;
 import com.auth_service.entity.UserEntity;
+import com.auth_service.records.AuthResponse;
 import com.auth_service.repository.UserRepository;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -41,11 +42,12 @@ public class AuthService {
 
         if (!passwordMatches) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Credenciales inválidas");
+
         }
 
-        String token = jwtService.generateToken(user.getEmail(), UserEntity.Role.valueOf(String.valueOf(user.getRole())));
+        String token = jwtService.generateToken(user.getEmail(), UserEntity.Role.valueOf(String.valueOf(user.getRole())), user.getId());
 
-        return ResponseEntity.ok(token);
+        return ResponseEntity.ok(new AuthResponse(token));
     }
 
 }
