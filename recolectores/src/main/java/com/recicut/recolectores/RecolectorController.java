@@ -1,12 +1,8 @@
 package com.recicut.recolectores;
 
-import com.recicut.recolectores.client.UserClient;
 import com.recicut.recolectores.dto.UserDto;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
@@ -14,18 +10,20 @@ import java.util.List;
 @RequestMapping("/api/recolectores")
 public class RecolectorController {
 
-    @Autowired
-    private UserClient userClient;
-
     // Tu método original de prueba
     @GetMapping
     public List<String> listarRecolectores() {
         return List.of("Recolector 1 - Prueba", "Recolector 2 - Prueba");
     }
 
-    // Nuevo método para consultar al user-service de Tony vía OpenFeign
+    // Método de prueba local con datos simulados
     @GetMapping("/usuario/{id}")
-    public UserDto obtenerUsuarioDeTony(@PathVariable("id") Long id) {
-        return userClient.getUserById(id);
+    public ResponseEntity<UserDto> obtenerUsuarioDeTony(@PathVariable("id") Long id) {
+        UserDto usuarioPrueba = new UserDto();
+        usuarioPrueba.setId(id);
+        usuarioPrueba.setNombre("Usuario de Prueba");
+        usuarioPrueba.setEmail("prueba@recicut.com");
+
+        return ResponseEntity.ok(usuarioPrueba);
     }
 }
