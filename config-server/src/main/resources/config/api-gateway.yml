@@ -47,15 +47,18 @@ spring:
               uri: lb://auth-service
               predicates:
                 - Path=/api/auth/**
+
             - id: user-service
               uri: lb://user-service
               predicates:
                 - Path=/api/users/**
+
             - id: campania-service
               uri: lb://campania-service
               predicates:
                 - Path=/api/campania/**
-                - id: recompensas-service
-                - uri: lb://recompensas-service
-                - predicates:
+
+            - id: recompensas-service
+              uri: lb://recompensas-service
+              predicates:
                 - Path=/api/recompensas/**
