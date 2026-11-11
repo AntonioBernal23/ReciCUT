@@ -1,6 +1,8 @@
 package com.recicut.recolectores;
 
-import com.recicut.recolectores.dto.UserDto;
+import com.recicut.recolectores.entity.Recolector;
+import com.recicut.recolectores.repository.RecolectorRepository;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -8,22 +10,22 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/recolectores")
+@CrossOrigin(origins = "http://localhost:4200")
 public class RecolectorController {
 
-    // Tu método original de prueba
-    @GetMapping
-    public List<String> listarRecolectores() {
-        return List.of("Recolector 1 - Prueba", "Recolector 2 - Prueba");
+    @Autowired
+    private RecolectorRepository recolectorRepository;
+
+    // Endpoint para guardar un nuevo recolector en la BD
+    @PostMapping
+    public ResponseEntity<Recolector> crearRecolector(@RequestBody Recolector recolector) {
+        Recolector nuevo = recolectorRepository.save(recolector);
+        return ResponseEntity.ok(nuevo);
     }
 
-    // Método de prueba local con datos simulados
-    @GetMapping("/usuario/{id}")
-    public ResponseEntity<UserDto> obtenerUsuarioDeTony(@PathVariable("id") Long id) {
-        UserDto usuarioPrueba = new UserDto();
-        usuarioPrueba.setId(id);
-        usuarioPrueba.setNombre("Usuario de Prueba");
-        usuarioPrueba.setEmail("prueba@recicut.com");
-
-        return ResponseEntity.ok(usuarioPrueba);
+    // Endpoint para listar todos los recolectores desde la BD
+    @GetMapping
+    public ResponseEntity<List<Recolector>> listarRecolectores() {
+        return ResponseEntity.ok(recolectorRepository.findAll());
     }
 }
