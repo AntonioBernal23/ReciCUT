@@ -12,6 +12,8 @@ COPY auth-service/pom.xml auth-service/pom.xml
 COPY config-server/pom.xml config-server/pom.xml
 COPY discovery-server/pom.xml discovery-server/pom.xml
 COPY user-service/pom.xml user-service/pom.xml
+COPY collection-service/pom.xml collection-service/pom.xml
+COPY report-service/pom.xml report-service/pom.xml
 
 # Descargar dependencias y cachearlas
 RUN mvn dependency:go-offline -pl config-server -am

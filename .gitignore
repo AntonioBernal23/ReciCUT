@@ -7,9 +7,14 @@
 # IDE
 .idea/
 *.iml
-*.swp
-*.swo
+*.iws
+*.ipr
+.vscode/
 
 # Maven
 target/
-out/
+HELP.md
+
+# Swap de editores
+*.swp
+*.swo
