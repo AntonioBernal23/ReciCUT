@@ -104,6 +104,10 @@ public class JwtAuthFilter implements GlobalFilter, Ordered {
         String path = exchange.getRequest().getURI().getPath();
         HttpMethod method = exchange.getRequest().getMethod();
 
+        if (HttpMethod.OPTIONS.equals(method)) {
+            return true;
+        }
+
         return HttpMethod.POST.equals(method) && PUBLIC_PATHS.contains(path);
     }
 
