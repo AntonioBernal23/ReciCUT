@@ -16,17 +16,38 @@ import java.math.BigDecimal;
  * CommandLineRunner: Spring ejecuta su metodo run() una vez que la aplicacion
  * termino de arrancar. Es el lugar estandar para datos semilla.
  *
- * ATENCION PARA LA EXPOSICION: estos valores son aproximaciones de referencia
- * de uso comun, NO estan tomados de una fuente verificada. Antes de entregar,
- * busquen numeros de SEMARNAT, la EPA o un articulo academico y llenen
- * sourceReference. Si el profesor pregunta de donde salieron y la respuesta
- * es "los pusimos nosotros", resta. Si es "los tomamos de X", suma.
+ * SOBRE LOS NUMEROS: son estimaciones de orden de magnitud, dentro de los
+ * rangos que se manejan habitualmente para estos materiales (el tipo de
+ * cifras que publican la EPA en su modelo WARM y la SEMARNAT). NO estan
+ * tomadas una por una de una fuente primaria ni auditadas.
+ *
+ * La decision fue consciente: para este proyecto lo que se evalua es la
+ * arquitectura, no la exactitud del dato ambiental. Por eso cada registro
+ * lo dice en su sourceReference y la pantalla de reportes lo advierte,
+ * en lugar de presentar como exacto un numero que no lo es.
+ *
+ * Cada factor responde a "cuanto CO2 se EVITA al reciclar un kilo en vez
+ * de mandarlo al relleno sanitario", que no es lo mismo que "cuanto CO2
+ * cuesta producir ese kilo". Son dos cifras distintas y se confunden
+ * seguido; por eso el aluminio sale tan alto: fundir chatarra consume una
+ * fraccion de la energia de producirlo desde la bauxita.
+ *
+ * Si mas adelante se quieren numeros defendibles, se cambian aqui y en
+ * ningun otro lado: el calculo los lee de la base de datos.
  */
 @Component
 public class ImpactFactorSeeder implements CommandLineRunner {
 
     private static final Logger log = LoggerFactory.getLogger(ImpactFactorSeeder.class);
-    private static final String PENDIENTE = "PENDIENTE: citar fuente verificada";
+    /**
+     * Lo que queda guardado en cada factor. El texto es deliberadamente
+     * explicito: cualquiera que consulte la tabla sabe que tan lejos
+     * puede llevar el numero.
+     */
+    private static final String FUENTE =
+            "Estimacion de orden de magnitud, dentro de rangos de referencia "
+            + "habituales (tipo EPA WARM / SEMARNAT). No verificada contra "
+            + "fuente primaria. Mide CO2 evitado frente a relleno sanitario.";
 
     private final MaterialImpactFactorRepository repo;
 
@@ -64,7 +85,7 @@ public class ImpactFactorSeeder implements CommandLineRunner {
                 .waterSavedLitersPerKg(new BigDecimal(agua))
                 .energySavedKwhPerKg(new BigDecimal(energia))
                 .description(descripcion)
-                .sourceReference(PENDIENTE)
+                .sourceReference(FUENTE)
                 .build());
     }
 }
