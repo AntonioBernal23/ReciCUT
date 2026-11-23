@@ -1,0 +1,421 @@
+services:
+  config-server:
+    build:
+      context: .
+      dockerfile: ./config-server/Dockerfile
+    container_name: config-server
+    environment:
+      - CONFIG_SERVER_PORT=${CONFIG_SERVER_PORT}
+    networks:
+      - recicut_network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:${CONFIG_SERVER_PORT}/application/default || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    restart: on-failure
+
+  discovery-server:
+    build:
+      context: .
+      dockerfile: ./discovery-server/Dockerfile
+    container_name: discovery-server
+    depends_on:
+      config-server:
+        condition: service_healthy
+    ports:
+      - "${EUREKA_SERVER_PORT}:8761"
+    environment:
+      - SPRING_CONFIG_IMPORT=optional:configserver:${CONFIG_SERVER_URL}
+      - CONFIG_SERVER_URL=${CONFIG_SERVER_URL}
+      - EUREKA_SERVER_PORT=${EUREKA_SERVER_PORT}
+      - EUREKA_HOSTNAME=${EUREKA_HOSTNAME}
+      - EUREKA_CLIENT_REGISTERWITHEUREKA=false
+      - EUREKA_CLIENT_FETCHREGISTRY=false
+    networks:
+      - recicut_network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:${EUREKA_SERVER_PORT}/eureka/apps -o /dev/null || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    restart: on-failure
+
+  mysql-auth:
+    image: mysql:8.0
+    container_name: mysql-auth
+    ports:
+      - "127.0.0.1:${MYSQL_AUTH_PORT}:3306"
+    environment:
+      - MYSQL_ROOT_PASSWORD=${MYSQL_AUTH_ROOT_PASSWORD}
+      - MYSQL_DATABASE=${MYSQL_AUTH_DATABASE}
+      - MYSQL_USER=${MYSQL_AUTH_USERNAME}
+      - MYSQL_PASSWORD=${MYSQL_AUTH_PASSWORD}
+    volumes:
+      - recicut_data_auth:/var/lib/mysql
+    networks:
+      - recicut_network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 20s
+      timeout: 5s
+      retries: 5
+    restart: always
+
+  mysql-user:
+    image: mysql:8.0
+    container_name: mysql-user
+    ports:
+      - "127.0.0.1:${MYSQL_USER_PORT}:3306"
+    environment:
+      - MYSQL_ROOT_PASSWORD=${MYSQL_USER_ROOT_PASSWORD}
+      - MYSQL_DATABASE=${MYSQL_USER_DATABASE}
+      - MYSQL_USER=${MYSQL_USER_USERNAME}
+      - MYSQL_PASSWORD=${MYSQL_USER_PASSWORD}
+    volumes:
+      - recicut_data_user:/var/lib/mysql
+    networks:
+      - recicut_network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 20s
+      timeout: 5s
+      retries: 5
+    restart: always
+
+  kafka:
+    image: apache/kafka:3.8.0
+    container_name: kafka
+    ports:
+      - "9092:9092" # solo para apps que corren en tu máquina (fuera de Docker)
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_LISTENERS: INTERNAL://:19092,EXTERNAL://:9092,CONTROLLER://:9093
+      # INTERNAL: contenedores (kafka:19092). EXTERNAL: tu host (localhost:9092)
+      KAFKA_ADVERTISED_LISTENERS: INTERNAL://kafka:19092,EXTERNAL://localhost:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,INTERNAL:PLAINTEXT,EXTERNAL:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+    volumes:
+      - kafka_data:/var/lib/kafka/data
+    networks:
+      - recicut_network
+    restart: on-failure
+
+  kafka-ui:
+    image: provectuslabs/kafka-ui:latest
+    container_name: kafka-ui
+    ports:
+      - "8085:8080"
+    environment:
+      KAFKA_CLUSTERS_0_NAME: local
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:19092
+    depends_on:
+      - kafka
+    networks:
+      - recicut_network
+
+  auth-service:
+    build:
+      context: .
+      dockerfile: ./auth-service/Dockerfile
+    container_name: auth-service
+    depends_on:
+      config-server:
+        condition: service_healthy
+      discovery-server:
+        condition: service_healthy
+      kafka:
+        condition: service_started
+      mysql-auth:
+        condition: service_healthy
+    environment:
+      - SPRING_CONFIG_IMPORT=optional:configserver:${CONFIG_SERVER_URL}
+      - CONFIG_SERVER_URL=${CONFIG_SERVER_URL}
+      - AUTH_SERVICE_PORT=${AUTH_SERVICE_PORT}
+      - EUREKA_URL=${EUREKA_URL}
+      - MYSQL_AUTH_HOST=${MYSQL_AUTH_HOST}
+      - MYSQL_AUTH_DATABASE=${MYSQL_AUTH_DATABASE}
+      - MYSQL_AUTH_USERNAME=${MYSQL_AUTH_USERNAME}
+      - MYSQL_AUTH_PASSWORD=${MYSQL_AUTH_PASSWORD}
+      - JPA_DDL_AUTO=${JPA_DDL_AUTO}
+      - JPA_SHOW_SQL=${JPA_SHOW_SQL}
+      - KAFKA_BROKER=${KAFKA_BROKER}
+      - JWT_SECRET=${JWT_SECRET}
+      - JWT_EXPIRATION=${JWT_EXPIRATION}
+      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
+    networks:
+      - recicut_network
+    restart: on-failure
+
+  user-service:
+    build:
+      context: .
+      dockerfile: ./user-service/Dockerfile
+    container_name: user-service
+    depends_on:
+      config-server:
+        condition: service_healthy
+      discovery-server:
+        condition: service_healthy
+      kafka:
+        condition: service_started
+      mysql-user:
+        condition: service_healthy
+    environment:
+      - SPRING_CONFIG_IMPORT=optional:configserver:${CONFIG_SERVER_URL}
+      - CONFIG_SERVER_URL=${CONFIG_SERVER_URL}
+      - USER_SERVICE_PORT=${USER_SERVICE_PORT}
+      - EUREKA_URL=${EUREKA_URL}
+      - MYSQL_USER_HOST=${MYSQL_USER_HOST}
+      - MYSQL_USER_DATABASE=${MYSQL_USER_DATABASE}
+      - MYSQL_USER_USERNAME=${MYSQL_USER_USERNAME}
+      - MYSQL_USER_PASSWORD=${MYSQL_USER_PASSWORD}
+      - JPA_DDL_AUTO=${JPA_DDL_AUTO}
+      - JPA_SHOW_SQL=${JPA_SHOW_SQL}
+      - KAFKA_BROKER=${KAFKA_BROKER}
+    networks:
+      - recicut_network
+    restart: on-failure
+
+  mysql-collection:
+    image: mysql:8.0
+    container_name: mysql-collection
+    ports:
+      - "127.0.0.1:${MYSQL_COLLECTION_PORT}:3306"
+    environment:
+      - MYSQL_ROOT_PASSWORD=${MYSQL_COLLECTION_ROOT_PASSWORD}
+      - MYSQL_DATABASE=${MYSQL_COLLECTION_DATABASE}
+      - MYSQL_USER=${MYSQL_COLLECTION_USERNAME}
+      - MYSQL_PASSWORD=${MYSQL_COLLECTION_PASSWORD}
+    volumes:
+      - recicut_data_collection:/var/lib/mysql
+    networks:
+      - recicut_network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 20s
+      timeout: 5s
+      retries: 5
+    restart: always
+
+  mysql-report:
+    image: mysql:8.0
+    container_name: mysql-report
+    ports:
+      - "127.0.0.1:${MYSQL_REPORT_PORT}:3306"
+    environment:
+      - MYSQL_ROOT_PASSWORD=${MYSQL_REPORT_ROOT_PASSWORD}
+      - MYSQL_DATABASE=${MYSQL_REPORT_DATABASE}
+      - MYSQL_USER=${MYSQL_REPORT_USERNAME}
+      - MYSQL_PASSWORD=${MYSQL_REPORT_PASSWORD}
+    volumes:
+      - recicut_data_report:/var/lib/mysql
+    networks:
+      - recicut_network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 20s
+      timeout: 5s
+      retries: 5
+    restart: always
+
+  collection-service:
+    build:
+      context: .
+      dockerfile: ./collection-service/Dockerfile
+    container_name: collection-service
+    depends_on:
+      config-server:
+        condition: service_healthy
+      discovery-server:
+        condition: service_healthy
+      kafka:
+        condition: service_started
+      mysql-collection:
+        condition: service_healthy
+    environment:
+      - SPRING_CONFIG_IMPORT=optional:configserver:${CONFIG_SERVER_URL}
+      - CONFIG_SERVER_URL=${CONFIG_SERVER_URL}
+      - COLLECTION_SERVICE_PORT=${COLLECTION_SERVICE_PORT}
+      - EUREKA_URL=${EUREKA_URL}
+      - MYSQL_COLLECTION_HOST=${MYSQL_COLLECTION_HOST}
+      - MYSQL_COLLECTION_DATABASE=${MYSQL_COLLECTION_DATABASE}
+      - MYSQL_COLLECTION_USERNAME=${MYSQL_COLLECTION_USERNAME}
+      - MYSQL_COLLECTION_PASSWORD=${MYSQL_COLLECTION_PASSWORD}
+      - JPA_DDL_AUTO=${JPA_DDL_AUTO}
+      - JPA_SHOW_SQL=${JPA_SHOW_SQL}
+      - KAFKA_BROKER=${KAFKA_BROKER}
+    networks:
+      - recicut_network
+    restart: on-failure
+
+  report-service:
+    build:
+      context: .
+      dockerfile: ./report-service/Dockerfile
+    container_name: report-service
+    depends_on:
+      config-server:
+        condition: service_healthy
+      discovery-server:
+        condition: service_healthy
+      kafka:
+        condition: service_started
+      mysql-report:
+        condition: service_healthy
+    environment:
+      - SPRING_CONFIG_IMPORT=optional:configserver:${CONFIG_SERVER_URL}
+      - CONFIG_SERVER_URL=${CONFIG_SERVER_URL}
+      - REPORT_SERVICE_PORT=${REPORT_SERVICE_PORT}
+      - EUREKA_URL=${EUREKA_URL}
+      - MYSQL_REPORT_HOST=${MYSQL_REPORT_HOST}
+      - MYSQL_REPORT_DATABASE=${MYSQL_REPORT_DATABASE}
+      - MYSQL_REPORT_USERNAME=${MYSQL_REPORT_USERNAME}
+      - MYSQL_REPORT_PASSWORD=${MYSQL_REPORT_PASSWORD}
+      - JPA_DDL_AUTO=${JPA_DDL_AUTO}
+      - JPA_SHOW_SQL=${JPA_SHOW_SQL}
+      - KAFKA_BROKER=${KAFKA_BROKER}
+    networks:
+      - recicut_network
+    restart: on-failure
+
+  mysql-recolectores:
+    image: mysql:8.0
+    container_name: mysql-recolectores
+    ports:
+      - "127.0.0.1:${MYSQL_RECOLECTORES_PORT}:3306"
+    environment:
+      - MYSQL_ROOT_PASSWORD=${MYSQL_RECOLECTORES_ROOT_PASSWORD}
+      - MYSQL_DATABASE=${MYSQL_RECOLECTORES_DATABASE}
+      - MYSQL_USER=${MYSQL_RECOLECTORES_USERNAME}
+      - MYSQL_PASSWORD=${MYSQL_RECOLECTORES_PASSWORD}
+    volumes:
+      - recicut_data_recolectores:/var/lib/mysql
+    networks:
+      - recicut_network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 20s
+      timeout: 5s
+      retries: 5
+    restart: always
+
+  mysql-centros:
+    image: mysql:8.0
+    container_name: mysql-centros
+    ports:
+      - "127.0.0.1:${MYSQL_CENTROS_PORT}:3306"
+    environment:
+      - MYSQL_ROOT_PASSWORD=${MYSQL_CENTROS_ROOT_PASSWORD}
+      - MYSQL_DATABASE=${MYSQL_CENTROS_DATABASE}
+      - MYSQL_USER=${MYSQL_CENTROS_USERNAME}
+      - MYSQL_PASSWORD=${MYSQL_CENTROS_PASSWORD}
+    volumes:
+      - recicut_data_centros:/var/lib/mysql
+    networks:
+      - recicut_network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 20s
+      timeout: 5s
+      retries: 5
+    restart: always
+
+  recolectores:
+    build:
+      context: .
+      dockerfile: ./recolectores/Dockerfile
+    container_name: recolectores
+    depends_on:
+      config-server:
+        condition: service_healthy
+      discovery-server:
+        condition: service_healthy
+      mysql-recolectores:
+        condition: service_healthy
+    environment:
+      - SPRING_CONFIG_IMPORT=optional:configserver:${CONFIG_SERVER_URL}
+      - CONFIG_SERVER_URL=${CONFIG_SERVER_URL}
+      - RECOLECTORES_PORT=${RECOLECTORES_PORT}
+      - EUREKA_URL=${EUREKA_URL}
+      - MYSQL_RECOLECTORES_HOST=${MYSQL_RECOLECTORES_HOST}
+      - MYSQL_RECOLECTORES_DATABASE=${MYSQL_RECOLECTORES_DATABASE}
+      - MYSQL_RECOLECTORES_USERNAME=${MYSQL_RECOLECTORES_USERNAME}
+      - MYSQL_RECOLECTORES_PASSWORD=${MYSQL_RECOLECTORES_PASSWORD}
+      - JPA_DDL_AUTO=${JPA_DDL_AUTO}
+      - JPA_SHOW_SQL=${JPA_SHOW_SQL}
+    networks:
+      - recicut_network
+    restart: on-failure
+
+  centro-reciclajes:
+    build:
+      context: .
+      dockerfile: ./centro_reciclajes/Dockerfile
+    container_name: centro-reciclajes
+    depends_on:
+      config-server:
+        condition: service_healthy
+      discovery-server:
+        condition: service_healthy
+      mysql-centros:
+        condition: service_healthy
+    environment:
+      - SPRING_CONFIG_IMPORT=optional:configserver:${CONFIG_SERVER_URL}
+      - CONFIG_SERVER_URL=${CONFIG_SERVER_URL}
+      - CENTROS_RECICLAJE_PORT=${CENTROS_RECICLAJE_PORT}
+      - EUREKA_URL=${EUREKA_URL}
+      - MYSQL_CENTROS_HOST=${MYSQL_CENTROS_HOST}
+      - MYSQL_CENTROS_DATABASE=${MYSQL_CENTROS_DATABASE}
+      - MYSQL_CENTROS_USERNAME=${MYSQL_CENTROS_USERNAME}
+      - MYSQL_CENTROS_PASSWORD=${MYSQL_CENTROS_PASSWORD}
+      - JPA_DDL_AUTO=${JPA_DDL_AUTO}
+      - JPA_SHOW_SQL=${JPA_SHOW_SQL}
+    networks:
+      - recicut_network
+    restart: on-failure
+
+  api-gateway:
+    build:
+      context: .
+      dockerfile: ./api-gateway/Dockerfile
+    container_name: api-gateway
+    depends_on:
+      config-server:
+        condition: service_healthy
+      discovery-server:
+        condition: service_healthy
+    ports:
+      - "${API_GATEWAY_PORT}:${API_GATEWAY_PORT}"
+    environment:
+      - SPRING_CONFIG_IMPORT=optional:configserver:${CONFIG_SERVER_URL}
+      - CONFIG_SERVER_URL=${CONFIG_SERVER_URL}
+      - API_GATEWAY_PORT=${API_GATEWAY_PORT}
+      - EUREKA_URL=${EUREKA_URL}
+      - CORS_ALLOWED_ORIGINS=${CORS_ALLOWED_ORIGINS}
+      - JWT_SECRET=${JWT_SECRET}
+    networks:
+      - recicut_network
+    restart: on-failure
+
+networks:
+  recicut_network:
+    driver: bridge
+
+volumes:
+  recicut_data_user:
+  recicut_data_auth:
+  recicut_data_collection:
+  recicut_data_report:
+  recicut_data_recolectores:
+  recicut_data_centros:
+  kafka_data:

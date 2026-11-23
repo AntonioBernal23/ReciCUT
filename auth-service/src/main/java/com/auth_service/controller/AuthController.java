@@ -5,10 +5,7 @@ import com.auth_service.dto.LoginDTO;
 import com.auth_service.service.AuthService;
 import com.auth_service.service.GoogleAuthService;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/auth")
@@ -30,6 +27,11 @@ public class AuthController {
     @PostMapping("/google")
     public ResponseEntity<?> loginWithGoogle(@RequestBody GoogleLoginDTO request) {
         return googleAuthService.verify(request.getToken());
+    }
+
+    @GetMapping("/validate")
+    public ResponseEntity<Void> validate() {
+        return ResponseEntity.ok().build();
     }
 
 }
