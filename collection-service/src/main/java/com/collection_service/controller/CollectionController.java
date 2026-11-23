@@ -97,6 +97,7 @@ public class CollectionController {
             @RequestParam(required = false) CollectionStatus status,
             @RequestParam(required = false) Long collectorId,
             @RequestParam(required = false) Long requesterId,
+            @RequestParam(required = false) Long recyclingCenterId,
             @RequestParam(required = false)
             @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime desde,
             @RequestParam(required = false)
@@ -104,7 +105,7 @@ public class CollectionController {
             @PageableDefault(size = 20) Pageable pageable) {
 
         return ResponseEntity.ok(collectionService.buscar(
-                status, collectorId, requesterId, desde, hasta, pageable));
+                status, collectorId, requesterId, recyclingCenterId, desde, hasta, pageable));
     }
 
     @GetMapping("/{id}/history")

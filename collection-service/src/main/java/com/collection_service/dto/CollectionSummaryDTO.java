@@ -16,6 +16,7 @@ public record CollectionSummaryDTO(
         Long id,
         Long requesterId,
         Long collectorId,
+        Long recyclingCenterId,
         CollectionStatus status,
         String pickupLocation,
         LocalDateTime scheduledAt,
@@ -25,7 +26,8 @@ public record CollectionSummaryDTO(
 ) {
     public static CollectionSummaryDTO fromEntity(CollectionRequestEntity e) {
         return new CollectionSummaryDTO(
-                e.getId(), e.getRequesterId(), e.getCollectorId(), e.getStatus(),
+                e.getId(), e.getRequesterId(), e.getCollectorId(),
+                e.getRecyclingCenterId(), e.getStatus(),
                 e.getPickupLocation(), e.getScheduledAt(), e.getCompletedAt(),
                 e.getTotalWeightKg(), e.getCreatedAt()
         );

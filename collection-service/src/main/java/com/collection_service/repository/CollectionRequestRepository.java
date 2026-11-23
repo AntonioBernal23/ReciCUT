@@ -100,6 +100,7 @@ public interface CollectionRequestRepository
            WHERE (:status      IS NULL OR r.status      = :status)
              AND (:collectorId IS NULL OR r.collectorId = :collectorId)
              AND (:requesterId IS NULL OR r.requesterId = :requesterId)
+             AND (:recyclingCenterId IS NULL OR r.recyclingCenterId = :recyclingCenterId)
              AND (:desde       IS NULL OR r.createdAt  >= :desde)
              AND (:hasta       IS NULL OR r.createdAt  <= :hasta)
            """)
@@ -107,6 +108,7 @@ public interface CollectionRequestRepository
             @Param("status")      CollectionStatus status,
             @Param("collectorId") Long collectorId,
             @Param("requesterId") Long requesterId,
+            @Param("recyclingCenterId") Long recyclingCenterId,
             @Param("desde")       LocalDateTime desde,
             @Param("hasta")       LocalDateTime hasta,
             Pageable pageable);

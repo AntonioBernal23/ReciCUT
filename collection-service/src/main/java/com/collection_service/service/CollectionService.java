@@ -263,10 +263,12 @@ public class CollectionService {
 
     @Transactional(readOnly = true)
     public Page<CollectionSummaryDTO> buscar(CollectionStatus status, Long collectorId,
-                                             Long requesterId, LocalDateTime desde,
-                                             LocalDateTime hasta, Pageable pageable) {
+                                             Long requesterId, Long recyclingCenterId,
+                                             LocalDateTime desde, LocalDateTime hasta,
+                                             Pageable pageable) {
         return requestRepository
-                .buscarConFiltros(status, collectorId, requesterId, desde, hasta, pageable)
+                .buscarConFiltros(status, collectorId, requesterId, recyclingCenterId,
+                        desde, hasta, pageable)
                 .map(CollectionSummaryDTO::fromEntity);
     }
 
