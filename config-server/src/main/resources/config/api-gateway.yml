@@ -33,6 +33,14 @@ spring:
               uri: lb://user-service
               predicates:
                 - Path=/api/users/**
+            - id: recolectores
+              uri: lb://recolectores
+              predicates:
+                - Path=/api/recolectores/**
+            - id: centro-reciclajes
+              uri: lb://centro-reciclajes
+              predicates:
+                - Path=/api/centros/**
             - id: collection-service
               uri: lb://collection-service
               predicates:
