@@ -62,3 +62,20 @@ spring:
               uri: lb://recompensas-service
               predicates:
                 - Path=/api/recompensas/**
+
+            - id: recolectores
+              uri: lb://recolectores
+              predicates:
+                - Path=/api/recolectores/**
+            - id: centro-reciclajes
+              uri: lb://centro-reciclajes
+              predicates:
+                - Path=/api/centros/**
+            - id: collection-service
+              uri: lb://collection-service
+              predicates:
+                - Path=/api/collections/**
+            - id: report-service
+              uri: lb://report-service
+              predicates:
+                - Path=/api/reports/**
