@@ -1,5 +1,5 @@
-﻿spring:
+spring:
   application:
     name: recompensas-service
   config:
-    import: "optional:configserver:http://localhost:8888"
+    import: optional:configserver:${CONFIG_SERVER_URL}

@@ -1,3 +1,4 @@
+# syntax=docker/dockerfile:1
 FROM eclipse-temurin:21-jdk-alpine AS build
 
 WORKDIR /app
@@ -21,13 +22,20 @@ COPY recolectores/pom.xml recolectores/pom.xml
 COPY centro_reciclajes/pom.xml centro_reciclajes/pom.xml
 
 # Descargar dependencias y cachearlas
-RUN mvn dependency:go-offline -pl api-gateway -am
+# El cache de Maven vive FUERA de la imagen, en un cache persistente de
+# BuildKit. Importa porque cada Dockerfile copia los 11 pom.xml: tocar el
+# pom de CUALQUIER modulo invalida esta capa en TODOS los servicios y, sin
+# el cache, Maven volveria a descargar medio Maven Central cada vez.
+#
+# sharing=locked serializa el acceso: si se construyen varios servicios a
+# la vez, no compiten por la red ni se pisan el repositorio local.
+RUN --mount=type=cache,target=/root/.m2,sharing=locked mvn dependency:go-offline -pl api-gateway -am
 
 # Ahora copiar el resto del código
 COPY . .
 
 # Compilar
-RUN mvn clean package -DskipTests -pl api-gateway -am
+RUN --mount=type=cache,target=/root/.m2,sharing=locked mvn clean package -DskipTests -pl api-gateway -am
 
 # Runtime
 FROM eclipse-temurin:21-jre-alpine

@@ -1,3 +1,4 @@
+# syntax=docker/dockerfile:1
 # =====================================================================
 #  report-service
 #
@@ -32,12 +33,19 @@ COPY centro_reciclajes/pom.xml centro_reciclajes/pom.xml
 
 # Descargar dependencias y cachearlas
 # -pl = solo este modulo    -am = y los que necesita (el pom padre)
-RUN mvn dependency:go-offline -pl report-service -am
+# El cache de Maven vive FUERA de la imagen, en un cache persistente de
+# BuildKit. Importa porque cada Dockerfile copia los 11 pom.xml: tocar el
+# pom de CUALQUIER modulo invalida esta capa en TODOS los servicios y, sin
+# el cache, Maven volveria a descargar medio Maven Central cada vez.
+#
+# sharing=locked serializa el acceso: si se construyen varios servicios a
+# la vez, no compiten por la red ni se pisan el repositorio local.
+RUN --mount=type=cache,target=/root/.m2,sharing=locked mvn dependency:go-offline -pl report-service -am
 
 # Ahora si, el resto del codigo
 COPY . .
 
-RUN mvn clean package -DskipTests -pl report-service -am
+RUN --mount=type=cache,target=/root/.m2,sharing=locked mvn clean package -DskipTests -pl report-service -am
 
 # ---------- Etapa 2: ejecutar ----------
 FROM eclipse-temurin:21-jre-alpine

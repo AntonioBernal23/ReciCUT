@@ -81,8 +81,8 @@ es algo que va a pasar, y el servicio lo ignora en lugar de duplicar el reporte.
 | `report-service` | 8040 | `report_service` | Reportes agregados e impacto ambiental |
 | `recolectores` | 8030 | `recolectores_service` | Catálogo de recolectores y sus zonas |
 | `centro-reciclajes` | 8081 | `centros_service` | Catálogo de centros de reciclaje |
-| `campania-service` | 8090 | `campanias` (MariaDB) | Campañas y sus inscripciones; otorga puntos |
-| `recompensas-service` | 8091 | `recompensas` (MariaDB) | Catálogo de premios, saldo de puntos y canjes |
+| `campania-service` | 8061 | `campania_service` (MariaDB) | Campañas y sus inscripciones; otorga puntos |
+| `recompensas-service` | 8062 | `recompensas` (MariaDB) | Catálogo de premios, saldo de puntos y canjes |
 
 Solo el gateway (8080), Eureka (8761), Kafka (9092) y Kafka UI (8085) están
 expuestos a la máquina. Los microservicios **no**: se les habla a través del
@@ -142,12 +142,42 @@ Los 21 contenedores deben estar `Up`. Después:
 | Tópicos y mensajes de Kafka | http://localhost:8085 |
 | API (a través del gateway) | http://localhost:8080 |
 
-En Eureka deben aparecer los 7 servicios de negocio e infraestructura. Si
+En Eureka deben aparecer las 9 aplicaciones (gateway + 8 microservicios). Si
 alguno falta, revisa sus registros:
 
 ```bash
 docker compose logs -f collection-service
 ```
+
+### Si un servicio no arranca
+
+Dos fallos de configuración nos costaron horas; si vuelven a aparecer, se
+reconocen por el mismo síntoma: el contenedor entra en `Restarting` y su log
+dice `Failed to configure a DataSource: 'url' attribute is not specified`.
+
+Significa que el servicio **no recibió su configuración** del config-server, y
+casi siempre es una de estas dos causas:
+
+1. **El `.yml` del config-server está indentado.** Las claves raíz (`server:`,
+   `spring:`, `eureka:`) van en la columna 0. Si llevan dos espacios al
+   principio, el YAML es válido pero describe otra cosa, y `spring.datasource.url`
+   nunca existe. Compara contra `config/collection-service.yml`.
+
+2. **El `application.yml` del servicio empieza con BOM.** Un editor de Windows
+   puede guardar tres bytes invisibles antes de `spring:`. El parser lee la
+   primera clave como `\uFEFFspring`, así que el servicio se queda sin nombre
+   (`spring.application.name`) y pide al config-server el archivo equivocado.
+   Para detectarlos todos:
+
+   ```bash
+   for f in */src/main/resources/application.yml; do
+     head -c 3 "$f" | grep -q $'\xef\xbb\xbf' && echo "BOM -> $f"
+   done
+   ```
+
+Y un tercer síntoma distinto: si el gateway responde **404** en una ruta que sí
+existe en su configuración, es que arrancó antes de que ese servicio se
+registrara en Eureka. `docker compose restart api-gateway` lo resuelve.
 
 ### Apagarlo
 
