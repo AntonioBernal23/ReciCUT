@@ -32,4 +32,7 @@ public class Canje {
 
     @Column(nullable = false)
     private LocalDateTime fecha = LocalDateTime.now();
+
+    @Column(name = "usuario_email", length = 255)
+    private String usuarioEmail;
 }

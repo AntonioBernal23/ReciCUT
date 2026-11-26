@@ -45,6 +45,7 @@ public class InscripcionService {
         InscripcionEntity inscripcion = new InscripcionEntity();
         inscripcion.setCampania(campania);
         inscripcion.setUsuarioId(usuarioId);
+        inscripcion.setUsuarioEmail(emailDeLaPeticion());
         inscripcion.setFechaInscripcion(new Date());
 
         return inscripcionRepository.save(inscripcion);
@@ -55,7 +56,53 @@ public class InscripcionService {
                 .findByCampaniaIdAndUsuarioId(campaniaId, usuarioId)
                 .orElseThrow(() -> new ResponseStatusException(
                         HttpStatus.NOT_FOUND, "No estás inscrito en esta campaña"));
+        if (Boolean.TRUE.equals(inscripcion.getCompletada())) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "No puedes cancelar una participaci\u00f3n que ya fue completada");
+        }
         inscripcionRepository.delete(inscripcion);
+    }
+
+    @org.springframework.beans.factory.annotation.Autowired
+    private com.campania_service.client.PuntosClient puntosClient;
+
+    private String emailDeLaPeticion() {
+        try {
+            org.springframework.web.context.request.RequestAttributes attrs =
+                    org.springframework.web.context.request.RequestContextHolder.getRequestAttributes();
+            if (attrs instanceof org.springframework.web.context.request.ServletRequestAttributes sra) {
+                return sra.getRequest().getHeader("X-User-Email");
+            }
+        } catch (Exception ignored) {
+        }
+        return null;
+    }
+
+    public List<InscripcionEntity> inscripcionesDeCampania(Long campaniaId) {
+        campaniaService.getById(campaniaId);
+        return inscripcionRepository.findAll().stream()
+                .filter(i -> i.getCampania() != null && campaniaId.equals(i.getCampania().getId()))
+                .toList();
+    }
+
+    public InscripcionEntity completar(Long campaniaId, Long usuarioId) {
+        CampaniaEntity campania = campaniaService.getById(campaniaId);
+        InscripcionEntity inscripcion = inscripcionRepository
+                .findByCampaniaIdAndUsuarioId(campaniaId, usuarioId)
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.NOT_FOUND, "El usuario no est\u00e1 inscrito en esta campa\u00f1a"));
+        if (Boolean.TRUE.equals(inscripcion.getCompletada())) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "La participaci\u00f3n ya fue marcada como completada");
+        }
+        int puntos = campania.getPuntos() == null ? 0 : campania.getPuntos();
+        if (puntos > 0) {
+            puntosClient.acreditar(usuarioId, puntos,
+                    "CAMPANIA-" + campaniaId + "-USUARIO-" + usuarioId,
+                    "Puntos por completar la campa\u00f1a: " + campania.getName());
+        }
+        inscripcion.setCompletada(true);
+        inscripcion.setFechaCompletada(new Date());
+        return inscripcionRepository.save(inscripcion);
     }
 
     public List<InscripcionEntity> misInscripciones(Long usuarioId) {

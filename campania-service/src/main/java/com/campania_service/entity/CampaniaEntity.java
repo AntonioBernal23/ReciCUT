@@ -35,6 +35,8 @@ public class CampaniaEntity {
 
     private Date createdAt;
 
+    private Integer puntos;
+
     public enum Type {
         VOLUNTARIA, SERVICIO
     }

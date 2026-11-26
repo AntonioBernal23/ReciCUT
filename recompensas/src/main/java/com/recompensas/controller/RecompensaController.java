@@ -18,79 +18,77 @@ public class RecompensaController {
         this.recompensaService = recompensaService;
     }
 
-    // Listar recompensas activas
+    // Catalogo para usuarios: solo activas
     @GetMapping
     public List<RecompensaDTO> listarActivas() {
-        return recompensaService.listarActivas()
-                .stream()
-                .map(this::convertirDTO)
-                .toList();
+        return recompensaService.listarActivas().stream().map(this::convertirDTO).toList();
     }
 
-    // Listar todas las recompensas
+    // Catalogo completo (administracion)
     @GetMapping("/todas")
-    public List<RecompensaDTO> listarTodas() {
-        return recompensaService.listarTodas()
-                .stream()
-                .map(this::convertirDTO)
-                .toList();
+    public List<RecompensaDTO> listarTodas(
+            @RequestHeader(value = "X-User-Role", required = false) String role) {
+        Acceso.exigirAdmin(role);
+        return recompensaService.listarTodas().stream().map(this::convertirDTO).toList();
     }
 
-    // Buscar recompensa por ID
     @GetMapping("/{id}")
     public RecompensaDTO buscarPorId(@PathVariable Long id) {
         return convertirDTO(recompensaService.buscarPorId(id));
     }
 
-    // Crear recompensa
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    public RecompensaDTO crear(@RequestBody RecompensaDTO dto) {
-
-        Recompensa recompensa = new Recompensa();
-
-        recompensa.setNombre(dto.getNombre());
-        recompensa.setDescripcion(dto.getDescripcion());
-        recompensa.setCostoPuntos(dto.getCostoPuntos());
-        recompensa.setStock(dto.getStock());
-
-        return convertirDTO(recompensaService.crear(recompensa));
+    public RecompensaDTO crear(
+            @RequestBody RecompensaDTO dto,
+            @RequestHeader(value = "X-User-Role", required = false) String role) {
+        Acceso.exigirAdmin(role);
+        return convertirDTO(recompensaService.crear(aEntidad(dto)));
     }
 
-    // Actualizar recompensa
     @PutMapping("/{id}")
     public RecompensaDTO actualizar(
             @PathVariable Long id,
-            @RequestBody RecompensaDTO dto) {
-
-        Recompensa datos = new Recompensa();
-
-        datos.setNombre(dto.getNombre());
-        datos.setDescripcion(dto.getDescripcion());
-        datos.setCostoPuntos(dto.getCostoPuntos());
-        datos.setStock(dto.getStock());
-
-        return convertirDTO(recompensaService.actualizar(id, datos));
+            @RequestBody RecompensaDTO dto,
+            @RequestHeader(value = "X-User-Role", required = false) String role) {
+        Acceso.exigirAdmin(role);
+        return convertirDTO(recompensaService.actualizar(id, aEntidad(dto)));
     }
 
-    // Desactivar recompensa
+    @PutMapping("/{id}/activar")
+    public RecompensaDTO reactivar(
+            @PathVariable Long id,
+            @RequestHeader(value = "X-User-Role", required = false) String role) {
+        Acceso.exigirAdmin(role);
+        return convertirDTO(recompensaService.reactivar(id));
+    }
+
+    // "Eliminar" = desactivar: se oculta del catalogo y se conserva el historial
     @DeleteMapping("/{id}")
-    public RecompensaDTO desactivar(@PathVariable Long id) {
+    public RecompensaDTO desactivar(
+            @PathVariable Long id,
+            @RequestHeader(value = "X-User-Role", required = false) String role) {
+        Acceso.exigirAdmin(role);
         return convertirDTO(recompensaService.desactivar(id));
     }
 
-    // Convertir entidad a DTO
+    private Recompensa aEntidad(RecompensaDTO dto) {
+        Recompensa r = new Recompensa();
+        r.setNombre(dto.getNombre());
+        r.setDescripcion(dto.getDescripcion());
+        r.setCostoPuntos(dto.getCostoPuntos());
+        r.setStock(dto.getStock());
+        return r;
+    }
+
     private RecompensaDTO convertirDTO(Recompensa recompensa) {
-
         RecompensaDTO dto = new RecompensaDTO();
-
         dto.setId(recompensa.getId());
         dto.setNombre(recompensa.getNombre());
         dto.setDescripcion(recompensa.getDescripcion());
         dto.setCostoPuntos(recompensa.getCostoPuntos());
         dto.setStock(recompensa.getStock());
         dto.setActiva(recompensa.getActiva());
-
         return dto;
     }
 }

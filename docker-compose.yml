@@ -403,6 +403,59 @@ services:
       - EUREKA_URL=${EUREKA_URL}
       - CORS_ALLOWED_ORIGINS=${CORS_ALLOWED_ORIGINS}
       - JWT_SECRET=${JWT_SECRET}
+
+    networks:
+      - recicut_network
+    restart: on-failure
+
+  campania-service:
+    build:
+      context: .
+      dockerfile: ./campania-service/Dockerfile
+    container_name: campania-service
+    depends_on:
+      config-server:
+        condition: service_healthy
+      discovery-server:
+        condition: service_healthy
+    environment:
+      SPRING_CONFIG_IMPORT: "optional:configserver:http://config-server:8888"
+      CONFIG_SERVER_URL: "http://config-server:8888"
+      CAMPANIA_SERVICE_PORT: "8061"
+      EUREKA_URL: "http://discovery-server:8761/eureka/"
+      MARIADB_CAMPANIA_HOST: "host.docker.internal"
+      MARIADB_CAMPANIA_PORT: "3306"
+      MARIADB_CAMPANIA_SERVICE: "campania_service"
+      MYSQL_ROOT_USERNAME: "root"
+      MYSQL_ROOT_PASSWORD: "root"
+      JPA_DDL_AUTO: "update"
+      JPA_SHOW_SQL: "false"
+    networks:
+      - recicut_network
+    restart: on-failure
+
+  recompensas-service:
+    build:
+      context: .
+      dockerfile: ./recompensas/Dockerfile
+    container_name: recompensas-service
+    depends_on:
+      config-server:
+        condition: service_healthy
+      discovery-server:
+        condition: service_healthy
+    environment:
+      SPRING_CONFIG_IMPORT: "optional:configserver:http://config-server:8888"
+      CONFIG_SERVER_URL: "http://config-server:8888"
+      RECOMPENSAS_SERVICE_PORT: "8062"
+      EUREKA_URL: "http://discovery-server:8761/eureka/"
+      MARIADB_RECOMPENSAS_HOST: "host.docker.internal"
+      MARIADB_RECOMPENSAS_PORT: "3306"
+      MARIADB_RECOMPENSAS_SERVICE: "recompensas"
+      MYSQL_ROOT_USERNAME: "root"
+      MYSQL_ROOT_PASSWORD: "root"
+      JPA_DDL_AUTO: "update"
+      JPA_SHOW_SQL: "false"
     networks:
       - recicut_network
     restart: on-failure

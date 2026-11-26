@@ -36,6 +36,25 @@ public class CanjeService {
         this.movimientoPuntosRepository = movimientoPuntosRepository;
     }
 
+    private String emailDeLaPeticion() {
+        try {
+            org.springframework.web.context.request.RequestAttributes attrs =
+                    org.springframework.web.context.request.RequestContextHolder.getRequestAttributes();
+            if (attrs instanceof org.springframework.web.context.request.ServletRequestAttributes sra) {
+                return sra.getRequest().getHeader("X-User-Email");
+            }
+        } catch (Exception ignored) {
+        }
+        return null;
+    }
+
+    // Consultar todos los canjes (administracion)
+    public List<Canje> todosLosCanjes() {
+        return canjeRepository.findAll().stream()
+                .sorted((a, b) -> b.getFecha().compareTo(a.getFecha()))
+                .toList();
+    }
+
     // Consultar los canjes de un usuario
     public List<Canje> consultarCanjes(Long usuarioId) {
         return canjeRepository.findByUsuarioIdOrderByFechaDesc(usuarioId);
@@ -104,6 +123,7 @@ public class CanjeService {
         canje.setRecompensa(recompensa);
         canje.setPuntosUtilizados(recompensa.getCostoPuntos());
         canje.setEstado("PENDIENTE");
+        canje.setUsuarioEmail(emailDeLaPeticion());
 
         canjeRepository.save(canje);
 

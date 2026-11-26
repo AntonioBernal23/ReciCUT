@@ -29,4 +29,11 @@ public class InscripcionEntity {
     private Long usuarioId;
 
     private Date fechaInscripcion;
+
+    @Column(name = "usuario_email", length = 255)
+    private String usuarioEmail;
+
+    private Boolean completada = false;
+
+    private Date fechaCompletada;
 }

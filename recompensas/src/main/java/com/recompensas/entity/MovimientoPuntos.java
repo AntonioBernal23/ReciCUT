@@ -29,6 +29,9 @@ public class MovimientoPuntos {
     @Column(length = 255)
     private String descripcion;
 
+    @Column(length = 100)
+    private String referencia;
+
     @Column(nullable = false)
     private LocalDateTime fecha = LocalDateTime.now();
 }

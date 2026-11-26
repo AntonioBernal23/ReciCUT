@@ -16,9 +16,12 @@ public class MovimientoPuntosController {
         this.movimientoPuntosService = movimientoPuntosService;
     }
 
-    // Consultar historial de movimientos
     @GetMapping("/{usuarioId}")
-    public List<MovimientoPuntos> consultarHistorial(@PathVariable Long usuarioId) {
+    public List<MovimientoPuntos> consultarHistorial(
+            @PathVariable Long usuarioId,
+            @RequestHeader(value = "X-User-Id", required = false) Long solicitante,
+            @RequestHeader(value = "X-User-Role", required = false) String role) {
+        Acceso.exigirPropietarioOAdmin(role, solicitante, usuarioId);
         return movimientoPuntosService.consultarHistorial(usuarioId);
     }
 }

@@ -14,9 +14,12 @@ public class SaldoPuntosController {
         this.saldoPuntosService = saldoPuntosService;
     }
 
-    // Consultar saldo de un usuario
     @GetMapping("/{usuarioId}")
-    public SaldoPuntos consultarSaldo(@PathVariable Long usuarioId) {
+    public SaldoPuntos consultarSaldo(
+            @PathVariable Long usuarioId,
+            @RequestHeader(value = "X-User-Id", required = false) Long solicitante,
+            @RequestHeader(value = "X-User-Role", required = false) String role) {
+        Acceso.exigirPropietarioOAdmin(role, solicitante, usuarioId);
         return saldoPuntosService.consultarSaldo(usuarioId);
     }
 }
