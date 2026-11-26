@@ -7,6 +7,9 @@ RUN apk add --no-cache maven
 # Copiar SOLO pom principal y del módulo
 COPY pom.xml .
 
+COPY campania-service/pom.xml campania-service/pom.xml
+COPY recompensas/pom.xml recompensas/pom.xml
+
 COPY api-gateway/pom.xml api-gateway/pom.xml
 COPY auth-service/pom.xml auth-service/pom.xml
 COPY config-server/pom.xml config-server/pom.xml

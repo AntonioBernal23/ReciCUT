@@ -19,6 +19,8 @@
     <packaging>pom</packaging>
 
     <modules>
+        <module>campania-service</module>
+        <module>recompensas</module>
         <module>config-server</module>
         <module>discovery-server</module>
         <module>auth-service</module>

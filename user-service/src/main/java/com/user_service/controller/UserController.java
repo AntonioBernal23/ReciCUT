@@ -2,6 +2,7 @@ package com.user_service.controller;
 
 import com.user_service.Repository.ProfileRepository;
 import com.user_service.entity.ProfileEntity;
+import com.user_service.service.UserService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -16,10 +17,17 @@ import java.util.Optional;
 @RequestMapping("/api/users")
 public class UserController {
 
+    private final UserService userService;
     private final ProfileRepository profileRepository;
 
-    public UserController(ProfileRepository profileRepository) {
+    public UserController(UserService userService, ProfileRepository profileRepository) {
+        this.userService = userService;
         this.profileRepository = profileRepository;
+    }
+
+    @GetMapping("/getUser/{id}")
+    public ResponseEntity<?> getUser(@PathVariable Long id) {
+        return userService.findUser(id);
     }
 
     @GetMapping("/{id}")
