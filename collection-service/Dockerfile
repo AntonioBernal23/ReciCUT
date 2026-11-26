@@ -17,6 +17,9 @@ RUN apk add --no-cache maven
 # dependencias cacheada y no vuelve a descargar medio Maven Central.
 COPY pom.xml .
 
+COPY campania-service/pom.xml campania-service/pom.xml
+COPY recompensas/pom.xml recompensas/pom.xml
+
 COPY api-gateway/pom.xml api-gateway/pom.xml
 COPY auth-service/pom.xml auth-service/pom.xml
 COPY config-server/pom.xml config-server/pom.xml
