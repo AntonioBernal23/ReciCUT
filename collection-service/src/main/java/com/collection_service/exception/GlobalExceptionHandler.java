@@ -8,7 +8,10 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.MissingRequestHeaderException;
+import org.springframework.web.HttpRequestMethodNotSupportedException;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 import java.time.LocalDateTime;
@@ -81,6 +84,34 @@ public class GlobalExceptionHandler {
     }
 
     /** Red de seguridad: cualquier cosa no prevista. */
+    /**
+     * Una URL que no existe. Sin esto cae en el catch-all de Exception y la API
+     * responde 500: un error del servidor por una peticion mal escrita del
+     * cliente. 404 es la respuesta correcta y no ensucia los logs de errores.
+     */
+    @ExceptionHandler(NoResourceFoundException.class)
+    public ResponseEntity<ApiError> noExiste(NoResourceFoundException e,
+                                             HttpServletRequest req) {
+        return build(HttpStatus.NOT_FOUND, "NOT_FOUND",
+                "La ruta solicitada no existe", req);
+    }
+
+    /** La ruta existe pero no con ese verbo (por ejemplo GET donde va PATCH). */
+    @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
+    public ResponseEntity<ApiError> metodoNoPermitido(HttpRequestMethodNotSupportedException e,
+                                                      HttpServletRequest req) {
+        return build(HttpStatus.METHOD_NOT_ALLOWED, "METHOD_NOT_ALLOWED",
+                "El metodo " + e.getMethod() + " no esta permitido en esta ruta", req);
+    }
+
+    /** Un id que no es numero: GET /api/collections/abc. Es culpa del cliente. */
+    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+    public ResponseEntity<ApiError> tipoInvalido(MethodArgumentTypeMismatchException e,
+                                                 HttpServletRequest req) {
+        return build(HttpStatus.BAD_REQUEST, "INVALID_PARAMETER",
+                "El parametro '" + e.getName() + "' tiene un valor invalido", req);
+    }
+
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiError> inesperado(Exception e, HttpServletRequest req) {
         // El stack trace va al LOG, no al cliente: filtrarlo seria una fuga de informacion.
