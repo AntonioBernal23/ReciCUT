@@ -81,6 +81,8 @@ es algo que va a pasar, y el servicio lo ignora en lugar de duplicar el reporte.
 | `report-service` | 8040 | `report_service` | Reportes agregados e impacto ambiental |
 | `recolectores` | 8030 | `recolectores_service` | Catálogo de recolectores y sus zonas |
 | `centro-reciclajes` | 8081 | `centros_service` | Catálogo de centros de reciclaje |
+| `campania-service` | 8090 | `campanias` (MariaDB) | Campañas y sus inscripciones; otorga puntos |
+| `recompensas-service` | 8091 | `recompensas` (MariaDB) | Catálogo de premios, saldo de puntos y canjes |
 
 Solo el gateway (8080), Eureka (8761), Kafka (9092) y Kafka UI (8085) están
 expuestos a la máquina. Los microservicios **no**: se les habla a través del
@@ -120,7 +122,7 @@ Luego:
 docker compose up -d --build
 ```
 
-La primera vez tarda varios minutos porque compila los 9 módulos. Los
+La primera vez tarda varios minutos porque compila los 11 módulos. Los
 servicios arrancan en orden: primero `config-server`, luego Eureka, después
 las bases de datos y Kafka, y al final los microservicios. El
 `docker-compose.yml` usa `depends_on` con `condition: service_healthy`, así
@@ -132,7 +134,7 @@ que nadie arranca antes de que su dependencia responda.
 docker compose ps
 ```
 
-Los 17 contenedores deben estar `Up`. Después:
+Los 21 contenedores deben estar `Up`. Después:
 
 | Qué | Dónde |
 |---|---|
@@ -251,6 +253,45 @@ lectura (CQRS): `collection-service` manda en las transacciones,
 | GET | `/api/centros` | Lista los centros |
 | DELETE | `/api/centros/{id}` | Da de baja un centro |
 
+### `campania-service`
+
+| Método | Ruta | Qué hace |
+|---|---|---|
+| POST | `/api/campania/create` | Crea una campaña (ADMIN) |
+| GET | `/api/campania/campanias` | Lista las campañas; a un usuario normal no le manda los borradores |
+| GET | `/api/campania/{id}` | Una campaña |
+| PUT | `/api/campania/{id}/activar` | Abre inscripciones (ADMIN) |
+| PUT | `/api/campania/{id}/cerrar` | Cierra inscripciones (ADMIN) |
+| DELETE | `/api/campania/{id}` | Elimina una campaña no activada (ADMIN) |
+| POST | `/api/campania/{id}/inscripciones` | Me inscribo |
+| DELETE | `/api/campania/{id}/inscripciones` | Cancelo mi inscripción |
+| GET | `/api/campania/mis-inscripciones` | Mis inscripciones |
+| GET | `/api/campania/{id}/inscripciones` | Participantes de una campaña (ADMIN) |
+| PUT | `/api/campania/{id}/inscripciones/{usuarioId}/completar` | Marca completada y **abona los puntos** (ADMIN) |
+
+### `recompensas-service`
+
+| Método | Ruta | Qué hace |
+|---|---|---|
+| GET | `/api/recompensas` | Catálogo activo |
+| GET | `/api/recompensas/todas` | Catálogo completo, incluidas las inactivas (ADMIN) |
+| GET | `/api/recompensas/{id}` | Una recompensa |
+| POST | `/api/recompensas` | Crea una recompensa (ADMIN) |
+| PUT | `/api/recompensas/{id}` | Edita una recompensa (ADMIN) |
+| PUT | `/api/recompensas/{id}/activar` | Reactiva una recompensa (ADMIN) |
+| DELETE | `/api/recompensas/{id}` | Elimina una recompensa (ADMIN) |
+| GET | `/api/recompensas/saldo/{usuarioId}` | Saldo de puntos; solo el dueño o un ADMIN |
+| GET | `/api/recompensas/canjes` | Todos los canjes (ADMIN) |
+| GET | `/api/recompensas/canjes/{usuarioId}` | Mis canjes; solo el dueño o un ADMIN |
+| POST | `/api/recompensas/canjes/{usuarioId}/{recompensaId}` | Canjea; solo con la propia cuenta |
+| PUT | `/api/recompensas/canjes/{id}/aprobar` | Aprueba un canje (ADMIN) |
+| PUT | `/api/recompensas/canjes/{id}/entregar` | Marca entregado (ADMIN) |
+| PUT | `/api/recompensas/canjes/{id}/cancelar` | Cancela y devuelve los puntos (ADMIN) |
+
+`POST /internal/puntos` NO está ruteado por el gateway: es la puerta por la
+que `campania-service` abona puntos vía OpenFeign, y no debe ser alcanzable
+desde fuera.
+
 ---
 
 ## Ciclo de vida de una recolección
@@ -347,20 +388,49 @@ export const environment = {
 | Antonio Bernal | `auth-service`, `user-service` |
 | Julián Santoyo | `collection-service`, `report-service` |
 | Omar | `recolectores`, `centro-reciclajes` |
+| Leonel | `campania-service`, `recompensas-service` |
 
 ## Ramas
 
 - `main` — versión estable
 - `dev` — integración; de aquí salen y aquí regresan las ramas de trabajo
-- una rama por persona o por funcionalidad, que entra a `dev` por *pull request*
+- una rama por persona, que entra a `dev` por *pull request*
+
+Al fusionar en GitHub conviene **"Create a merge commit"**, no *squash*: el
+squash reescribe los commits y después la rama aparece como "N commits por
+delante" aunque su contenido ya esté en `dev`.
+
+## Pruebas
+
+```bash
+./mvnw test
+```
+
+Corre en segundos: ninguna necesita Docker, MySQL ni Kafka. Las piezas de
+infraestructura son dobles de Mockito.
+
+| Qué se prueba | Dónde | Por qué importa |
+|---|---|---|
+| Máquina de estados | `CollectionStatusTest` | Impide marcar como recogida una solicitud que nadie recogió |
+| Completar publica el evento | `CollectionServiceTest` | Sin el evento, la recolección se completa pero los reportes quedan vacíos |
+| Transición inválida → 409 y sin publicar | `CollectionServiceTest` | Un evento es irreversible: publicarlo antes de validar corrompe los reportes |
+| Idempotencia del consumidor | `ReportIngestionServiceTest` | Kafka entrega *al menos* una vez; sin la defensa los kilos se cuentan doble |
+
+---
 
 ## Pendientes conocidos
 
-- Los factores de impacto ambiental de `report-service` tienen valores de
-  referencia pero **todavía no citan una fuente verificada**
-  (`ImpactFactorSeeder`). Hay que documentar de dónde sale cada número.
-- `user-service` solo expone la consulta por id; le falta el resto del CRUD
-  de perfiles.
-- Las pruebas automatizadas son únicamente las que genera Spring
-  (`contextLoads`). Faltan pruebas de la máquina de estados y de la
-  idempotencia del consumidor de Kafka.
+- **No existe el rol `COLLECTOR`.** `auth-service` solo tiene `USER` y
+  `ADMIN`, pero `collection-service` ya pregunta por `COLLECTOR` al asignar
+  una recolección. Hoy esas acciones solo las puede hacer un administrador.
+  Agregar el rol son tres líneas en el enum, pero toca el servicio de
+  autenticación y hay que acordarlo en equipo.
+- Los factores de impacto de `report-service` son **estimaciones de orden de
+  magnitud** declaradas como tales, no cifras verificadas contra una fuente
+  primaria. El cálculo las lee de la base de datos: cambiarlas es editar una
+  tabla.
+- `user-service` solo expone la consulta por id; le falta el resto del CRUD.
+- Las pruebas que necesitan la pila levantada (`*ApplicationTests`) están
+  desactivadas con `@Disabled`: no son unitarias y hacían fallar
+  `./mvnw test` en todos los módulos. Que el contexto arranca se comprueba al
+  levantar con Docker.
